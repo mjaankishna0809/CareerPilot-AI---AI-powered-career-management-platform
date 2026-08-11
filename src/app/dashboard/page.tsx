@@ -4,6 +4,7 @@ import { LogoutButton } from "@/components/auth/logout-button";
 import { createClient } from "@/lib/supabase/server";
 import Link from "next/link";
 
+
 export default async function DashboardPage() {
   const supabase = await createClient();
 
@@ -42,6 +43,16 @@ export default async function DashboardPage() {
         Resume and job application workspace
       </p>
     </div>
+    <div className="mt-6 flex gap-3">
+  <Link
+    href="/dashboard/applications/new"
+    className="rounded-xl bg-indigo-600 px-5 py-3 font-medium text-white transition hover:bg-indigo-500"
+  >
+    + Add Application
+  </Link>
+
+ 
+</div>
 
     <div className="flex items-center gap-3">
       <Link
