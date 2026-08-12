@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 
 import { createClient } from "@/lib/supabase/server";
+import { DeleteApplicationButton } from "@/components/applications/delete-application-button";
 
 type ApplicationStatus =
   | "wishlist"
@@ -228,13 +229,19 @@ export default async function ApplicationDetailsPage({
 
         {/* Future actions */}
         <div className="mt-8 flex flex-wrap gap-3">
-          <Link
-            href={`/dashboard/applications/${job.id}/edit`}
-            className="rounded-xl bg-indigo-600 px-5 py-3 font-medium text-white transition hover:bg-indigo-500"
-          >
-            Edit Application
-          </Link>
-        </div>
+  <Link
+    href={`/dashboard/applications/${job.id}/edit`}
+    className="rounded-xl bg-indigo-600 px-5 py-3 font-medium text-white transition hover:bg-indigo-500"
+  >
+    Edit Application
+  </Link>
+
+  <DeleteApplicationButton
+    applicationId={job.id}
+    companyName={job.company_name}
+    position={job.position}
+  />
+</div>
       </div>
     </main>
   );
