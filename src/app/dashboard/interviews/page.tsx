@@ -169,6 +169,7 @@ export default async function InterviewsPage() {
           >
             + Schedule Interview
           </Link>
+          
         </div>
 
         {/* Summary */}
@@ -421,6 +422,13 @@ function InterviewCard({
           Join Interview
         </a>
       )}
+
+      <Link
+  href={`/dashboard/interviews/${interview.id}`}
+  className="mt-6 inline-flex text-sm font-semibold text-indigo-400 transition hover:text-indigo-300"
+>
+  View details →
+</Link>
     </article>
   );
 }
