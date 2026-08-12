@@ -103,12 +103,22 @@ export default async function ApplicationsPage() {
             </p>
           </div>
 
+
+          <Link
+  href="/dashboard/applications/kanban"
+  className="inline-flex items-center justify-center rounded-xl border border-slate-700 px-5 py-3 font-semibold text-slate-200 transition hover:bg-slate-800"
+>
+  Kanban View
+</Link>
+
           <Link
             href="/dashboard/applications/new"
             className="inline-flex items-center justify-center rounded-xl bg-indigo-600 px-5 py-3 font-semibold text-white transition hover:bg-indigo-500"
           >
             + Add Application
           </Link>
+
+          
         </div>
 
         {/* Application count */}
