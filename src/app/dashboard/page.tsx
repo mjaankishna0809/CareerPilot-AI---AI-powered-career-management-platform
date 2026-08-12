@@ -57,7 +57,12 @@ export default async function DashboardPage() {
 >
   View Applications
 </Link>
-
+<Link
+  href="/dashboard/interviews/new"
+  className="rounded-xl border border-slate-700 px-5 py-3 font-medium text-slate-200 transition hover:bg-slate-800"
+>
+  Schedule Interview
+</Link>
  
 </div>
 
