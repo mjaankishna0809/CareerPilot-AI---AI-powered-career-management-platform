@@ -1,8 +1,8 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 
-import { createClient } from "@/lib/supabase/server";
 import { DeleteApplicationButton } from "@/components/applications/delete-application-button";
+import { createClient } from "@/lib/supabase/server";
 
 type ApplicationStatus =
   | "wishlist"
@@ -34,6 +34,13 @@ type JobApplication = {
   updated_at: string;
 };
 
+type StatusHistory = {
+  id: string;
+  from_status: ApplicationStatus | null;
+  to_status: ApplicationStatus;
+  changed_at: string;
+};
+
 type ApplicationDetailsPageProps = {
   params: Promise<{
     id: string;
@@ -48,7 +55,7 @@ export default async function ApplicationDetailsPage({
   const supabase = await createClient();
 
   // --------------------------------
-  // Check authentication
+  // 1. Check authentication
   // --------------------------------
 
   const { data: claimsData, error: authError } =
@@ -61,7 +68,7 @@ export default async function ApplicationDetailsPage({
   const userId = claimsData.claims.sub;
 
   // --------------------------------
-  // Get one application
+  // 2. Get the application
   // --------------------------------
 
   const {
@@ -108,10 +115,42 @@ export default async function ApplicationDetailsPage({
 
   const job = application as JobApplication;
 
+  // --------------------------------
+  // 3. Get status history
+  // --------------------------------
+
+  const {
+    data: history,
+    error: historyError,
+  } = await supabase
+    .from("application_status_history")
+    .select(
+      `
+        id,
+        from_status,
+        to_status,
+        changed_at
+      `
+    )
+    .eq("application_id", id)
+    .order("changed_at", {
+      ascending: true,
+    });
+
+  if (historyError) {
+    console.error(
+      "Unable to load status history:",
+      historyError.message
+    );
+  }
+
+  const statusHistory =
+    (history as StatusHistory[] | null) ?? [];
+
   return (
     <main className="min-h-screen bg-slate-950 text-slate-100">
       <div className="mx-auto max-w-5xl px-6 py-10">
-        {/* Back button */}
+        {/* Back */}
         <Link
           href="/dashboard/applications"
           className="text-sm text-slate-400 transition hover:text-white"
@@ -138,7 +177,7 @@ export default async function ApplicationDetailsPage({
           <StatusBadge status={job.status} />
         </div>
 
-        {/* Main information */}
+        {/* Basic Information */}
         <section className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
           <InfoCard
             label="Location"
@@ -169,6 +208,77 @@ export default async function ApplicationDetailsPage({
             label="Source"
             value={job.source || "Not specified"}
           />
+        </section>
+
+        {/* Status History Timeline */}
+        <section className="mt-8 rounded-2xl border border-slate-800 bg-slate-900/50 p-6">
+          <h2 className="text-lg font-semibold text-white">
+            Application progress
+          </h2>
+
+          <p className="mt-2 text-sm text-slate-400">
+            History of this application&apos;s recruitment stages.
+          </p>
+
+          {statusHistory.length === 0 ? (
+            <p className="mt-6 text-sm text-slate-500">
+              No status history available.
+            </p>
+          ) : (
+            <div className="mt-8">
+              {statusHistory.map((item, index) => {
+                const isLast =
+                  index === statusHistory.length - 1;
+
+                return (
+                  <div
+                    key={item.id}
+                    className="relative flex gap-4"
+                  >
+                    {/* Timeline marker */}
+                    <div className="flex flex-col items-center">
+                      <div className="h-3 w-3 rounded-full bg-indigo-500" />
+
+                      {!isLast && (
+                        <div className="h-full min-h-16 w-px bg-slate-700" />
+                      )}
+                    </div>
+
+                    {/* Timeline content */}
+                    <div
+                      className={
+                        isLast ? "pb-0" : "pb-8"
+                      }
+                    >
+                      <p className="font-medium text-slate-100">
+                        {item.from_status
+                          ? `${formatStatus(
+                              item.from_status
+                            )} → ${formatStatus(
+                              item.to_status
+                            )}`
+                          : formatStatus(
+                              item.to_status
+                            )}
+                      </p>
+
+                      <p className="mt-1 text-sm text-slate-500">
+                        {formatDateTime(
+                          item.changed_at
+                        )}
+                      </p>
+
+                      {!item.from_status && (
+                        <p className="mt-1 text-xs text-slate-500">
+                          Initial application status
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </section>
 
         {/* Salary */}
@@ -227,21 +337,21 @@ export default async function ApplicationDetailsPage({
           </p>
         </section>
 
-        {/* Future actions */}
+        {/* Actions */}
         <div className="mt-8 flex flex-wrap gap-3">
-  <Link
-    href={`/dashboard/applications/${job.id}/edit`}
-    className="rounded-xl bg-indigo-600 px-5 py-3 font-medium text-white transition hover:bg-indigo-500"
-  >
-    Edit Application
-  </Link>
+          <Link
+            href={`/dashboard/applications/${job.id}/edit`}
+            className="rounded-xl bg-indigo-600 px-5 py-3 font-medium text-white transition hover:bg-indigo-500"
+          >
+            Edit Application
+          </Link>
 
-  <DeleteApplicationButton
-    applicationId={job.id}
-    companyName={job.company_name}
-    position={job.position}
-  />
-</div>
+          <DeleteApplicationButton
+            applicationId={job.id}
+            companyName={job.company_name}
+            position={job.position}
+          />
+        </div>
       </div>
     </main>
   );
@@ -272,6 +382,16 @@ function StatusBadge({
 }: {
   status: ApplicationStatus;
 }) {
+  return (
+    <span className="inline-flex w-fit rounded-full border border-indigo-500/30 bg-indigo-500/10 px-4 py-2 text-sm font-medium text-indigo-300">
+      {formatStatus(status)}
+    </span>
+  );
+}
+
+function formatStatus(
+  status: ApplicationStatus
+) {
   const labels: Record<ApplicationStatus, string> = {
     wishlist: "Wishlist",
     applied: "Applied",
@@ -282,11 +402,7 @@ function StatusBadge({
     withdrawn: "Withdrawn",
   };
 
-  return (
-    <span className="inline-flex w-fit rounded-full border border-indigo-500/30 bg-indigo-500/10 px-4 py-2 text-sm font-medium text-indigo-300">
-      {labels[status]}
-    </span>
-  );
+  return labels[status];
 }
 
 function formatWorkMode(
@@ -318,18 +434,35 @@ function formatDate(date: string | null) {
   }).format(new Date(`${date}T00:00:00Z`));
 }
 
+function formatDateTime(date: string) {
+  return new Intl.DateTimeFormat("en-GB", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(new Date(date));
+}
+
 function formatSalary(
   salaryMin: number | null,
   salaryMax: number | null,
   currency: string | null
 ) {
-  if (salaryMin === null && salaryMax === null) {
+  if (
+    salaryMin === null &&
+    salaryMax === null
+  ) {
     return "Not specified";
   }
 
-  const selectedCurrency = currency || "LKR";
+  const selectedCurrency =
+    currency || "LKR";
 
-  if (salaryMin !== null && salaryMax !== null) {
+  if (
+    salaryMin !== null &&
+    salaryMax !== null
+  ) {
     return `${selectedCurrency} ${salaryMin.toLocaleString()} - ${salaryMax.toLocaleString()}`;
   }
 
