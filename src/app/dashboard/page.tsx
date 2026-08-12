@@ -51,6 +51,13 @@ export default async function DashboardPage() {
     + Add Application
   </Link>
 
+  <Link
+  href="/dashboard/applications"
+  className="rounded-xl border border-slate-700 px-5 py-3 font-medium text-slate-200 transition hover:bg-slate-800"
+>
+  View Applications
+</Link>
+
  
 </div>
 
