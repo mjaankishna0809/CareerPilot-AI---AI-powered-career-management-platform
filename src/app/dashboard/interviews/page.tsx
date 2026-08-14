@@ -243,12 +243,23 @@ export default async function InterviewsPage() {
                 invitation.
               </p>
 
-              <Link
-                href="/dashboard/interviews/new"
-                className="mt-5 inline-flex rounded-xl bg-indigo-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-indigo-500"
-              >
-                Schedule Interview
-              </Link>
+              <div className="flex flex-wrap gap-3">
+
+  <Link
+    href="/dashboard/interviews/calendar"
+    className="inline-flex items-center justify-center rounded-xl border border-slate-700 px-5 py-3 font-semibold text-slate-300 transition hover:bg-slate-800 hover:text-white"
+  >
+    Calendar View
+  </Link>
+
+  <Link
+    href="/dashboard/interviews/new"
+    className="inline-flex items-center justify-center rounded-xl bg-indigo-600 px-5 py-3 font-semibold text-white transition hover:bg-indigo-500"
+  >
+    + Schedule Interview
+  </Link>
+
+</div>
 
             </div>
           ) : (

@@ -151,6 +151,7 @@ export default async function DashboardPage() {
                     href="/dashboard/applications/kanban"
                     label="Application Board"
                   />
+                  
                 </div>
               </div>
 
@@ -176,15 +177,20 @@ export default async function DashboardPage() {
 
                 <div className="space-y-1">
 
-                  <SidebarLink
-                    href="/dashboard/interviews"
-                    label="View Interviews"
-                  />
+       <SidebarLink
+  href="/dashboard/interviews"
+  label="View Interviews"
+/>
 
-                  <SidebarLink
-                    href="/dashboard/interviews/new"
-                    label="Schedule Interview"
-                  />
+<SidebarLink
+  href="/dashboard/interviews/calendar"
+  label="Interview Calendar"
+/>
+
+<SidebarLink
+  href="/dashboard/interviews/new"
+  label="Schedule Interview"
+/>
                 </div>
               </div>
 
