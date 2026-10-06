@@ -83,6 +83,10 @@ export function NewInterviewForm({
 
     setErrorMessage("");
 
+    // --------------------------------------------------------
+    // Basic validation
+    // --------------------------------------------------------
+
     if (!applicationId) {
       setErrorMessage(
         "Please select a job application."
@@ -104,7 +108,13 @@ export function NewInterviewForm({
       return;
     }
 
-    const duration = Number(durationMinutes);
+    // --------------------------------------------------------
+    // Duration validation
+    // --------------------------------------------------------
+
+    const duration = Number(
+      durationMinutes
+    );
 
     if (
       Number.isNaN(duration) ||
@@ -116,7 +126,17 @@ export function NewInterviewForm({
       return;
     }
 
-    // Combine selected date + time
+    if (duration > 1440) {
+      setErrorMessage(
+        "Interview duration cannot exceed 24 hours."
+      );
+      return;
+    }
+
+    // --------------------------------------------------------
+    // Date + time
+    // --------------------------------------------------------
+
     const scheduledDate = new Date(
       `${interviewDate}T${interviewTime}:00`
     );
@@ -132,49 +152,149 @@ export function NewInterviewForm({
       return;
     }
 
+    // --------------------------------------------------------
+    // Prevent scheduling in the past
+    // --------------------------------------------------------
+
+    if (
+      scheduledDate.getTime() <=
+      Date.now()
+    ) {
+      setErrorMessage(
+        "Interview date and time must be in the future."
+      );
+      return;
+    }
+
+    // --------------------------------------------------------
+    // Video interview URL validation
+    // --------------------------------------------------------
+
+    const trimmedMeetingUrl =
+      meetingUrl.trim();
+
+    if (
+      mode === "video" &&
+      trimmedMeetingUrl
+    ) {
+      try {
+        new URL(trimmedMeetingUrl);
+      } catch {
+        setErrorMessage(
+          "Please enter a valid meeting URL."
+        );
+        return;
+      }
+    }
+
+    // --------------------------------------------------------
+    // Interviewer email validation
+    // --------------------------------------------------------
+
+    const trimmedEmail =
+      interviewerEmail.trim();
+
+    if (trimmedEmail) {
+      const emailPattern =
+        /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+      if (
+        !emailPattern.test(
+          trimmedEmail
+        )
+      ) {
+        setErrorMessage(
+          "Please enter a valid interviewer email."
+        );
+        return;
+      }
+    }
+
     setIsSubmitting(true);
 
     const supabase = createClient();
 
-    const { error } = await supabase
-      .from("interviews")
-      .insert({
-        user_id: userId,
-        application_id: applicationId,
+    try {
+      // ------------------------------------------------------
+      // Insert interview
+      // ------------------------------------------------------
 
-        stage,
-        mode,
-        status: "scheduled",
+      const { error } =
+        await supabase
+          .from("interviews")
+          .insert({
+            user_id: userId,
 
-        scheduled_at:
-          scheduledDate.toISOString(),
+            application_id:
+              applicationId,
 
-        duration_minutes: duration,
+            stage,
 
-        location:
-          location.trim() || null,
+            mode,
 
-        meeting_url:
-          meetingUrl.trim() || null,
+            status: "scheduled",
 
-        interviewer_name:
-          interviewerName.trim() || null,
+            scheduled_at:
+              scheduledDate.toISOString(),
 
-        interviewer_email:
-          interviewerEmail.trim() || null,
+            duration_minutes:
+              duration,
 
-        notes:
-          notes.trim() || null,
-      });
+            location:
+              location.trim() || null,
 
-    if (error) {
-      setErrorMessage(error.message);
+            meeting_url:
+              trimmedMeetingUrl ||
+              null,
+
+            interviewer_name:
+              interviewerName.trim() ||
+              null,
+
+            interviewer_email:
+              trimmedEmail || null,
+
+            notes:
+              notes.trim() || null,
+          });
+
+      if (error) {
+        console.error(
+          "Unable to schedule interview:",
+          error.message
+        );
+
+        setErrorMessage(
+          error.message
+        );
+
+        return;
+      }
+
+      // ------------------------------------------------------
+      // Success
+      // ------------------------------------------------------
+
+      router.push(
+        "/dashboard/interviews"
+      );
+
+      router.refresh();
+
+    } catch (error) {
+      console.error(
+        "Interview scheduling error:",
+        error
+      );
+
+      setErrorMessage(
+        error instanceof Error
+          ? error.message
+          : "Unable to schedule interview."
+      );
+    } finally {
       setIsSubmitting(false);
-      return;
     }
-
-    router.push("/dashboard/interviews");
-    router.refresh();
   }
 
   return (
@@ -182,8 +302,13 @@ export function NewInterviewForm({
       onSubmit={handleSubmit}
       className="space-y-6"
     >
-      {/* Application */}
+
+      {/* ====================================================
+          Application
+      ==================================================== */}
+
       <div>
+
         <label
           htmlFor="application"
           className="mb-2 block text-sm font-medium text-slate-200"
@@ -201,8 +326,9 @@ export function NewInterviewForm({
           }
           disabled={isSubmitting}
           required
-          className="w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-white outline-none focus:border-indigo-500"
+          className="w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-white outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
         >
+
           <option value="">
             Select application
           </option>
@@ -218,11 +344,17 @@ export function NewInterviewForm({
               </option>
             )
           )}
+
         </select>
+
       </div>
 
-      {/* Stage */}
+      {/* ====================================================
+          Stage
+      ==================================================== */}
+
       <div>
+
         <label
           htmlFor="stage"
           className="mb-2 block text-sm font-medium text-slate-200"
@@ -235,13 +367,13 @@ export function NewInterviewForm({
           value={stage}
           onChange={(event) =>
             setStage(
-              event.target
-                .value as InterviewStage
+              event.target.value as InterviewStage
             )
           }
           disabled={isSubmitting}
-          className="w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-white outline-none focus:border-indigo-500"
+          className="w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-white outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
         >
+
           <option value="phone_screen">
             Phone Screen
           </option>
@@ -269,11 +401,17 @@ export function NewInterviewForm({
           <option value="other">
             Other
           </option>
+
         </select>
+
       </div>
 
-      {/* Mode */}
+      {/* ====================================================
+          Mode
+      ==================================================== */}
+
       <div>
+
         <label
           htmlFor="mode"
           className="mb-2 block text-sm font-medium text-slate-200"
@@ -286,13 +424,13 @@ export function NewInterviewForm({
           value={mode}
           onChange={(event) =>
             setMode(
-              event.target
-                .value as InterviewMode
+              event.target.value as InterviewMode
             )
           }
           disabled={isSubmitting}
-          className="w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-white outline-none focus:border-indigo-500"
+          className="w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-white outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
         >
+
           <option value="phone">
             Phone
           </option>
@@ -308,12 +446,19 @@ export function NewInterviewForm({
           <option value="other">
             Other
           </option>
+
         </select>
+
       </div>
 
-      {/* Date + Time */}
+      {/* ====================================================
+          Date + Time
+      ==================================================== */}
+
       <div className="grid gap-6 sm:grid-cols-2">
+
         <div>
+
           <label
             htmlFor="interviewDate"
             className="mb-2 block text-sm font-medium text-slate-200"
@@ -325,6 +470,11 @@ export function NewInterviewForm({
             id="interviewDate"
             type="date"
             value={interviewDate}
+            min={
+              new Date()
+                .toISOString()
+                .split("T")[0]
+            }
             onChange={(event) =>
               setInterviewDate(
                 event.target.value
@@ -332,11 +482,13 @@ export function NewInterviewForm({
             }
             disabled={isSubmitting}
             required
-            className="w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-white outline-none focus:border-indigo-500"
+            className="w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-white outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
           />
+
         </div>
 
         <div>
+
           <label
             htmlFor="interviewTime"
             className="mb-2 block text-sm font-medium text-slate-200"
@@ -355,13 +507,19 @@ export function NewInterviewForm({
             }
             disabled={isSubmitting}
             required
-            className="w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-white outline-none focus:border-indigo-500"
+            className="w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-white outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
           />
+
         </div>
+
       </div>
 
-      {/* Duration */}
+      {/* ====================================================
+          Duration
+      ==================================================== */}
+
       <div>
+
         <label
           htmlFor="duration"
           className="mb-2 block text-sm font-medium text-slate-200"
@@ -370,10 +528,12 @@ export function NewInterviewForm({
         </label>
 
         <div className="flex items-center gap-3">
+
           <input
             id="duration"
             type="number"
             min="1"
+            max="1440"
             value={durationMinutes}
             onChange={(event) =>
               setDurationMinutes(
@@ -381,17 +541,23 @@ export function NewInterviewForm({
               )
             }
             disabled={isSubmitting}
-            className="w-32 rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-white outline-none focus:border-indigo-500"
+            className="w-32 rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-white outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
           />
 
           <span className="text-sm text-slate-400">
             minutes
           </span>
+
         </div>
+
       </div>
 
-      {/* Location */}
+      {/* ====================================================
+          Location
+      ==================================================== */}
+
       <div>
+
         <label
           htmlFor="location"
           className="mb-2 block text-sm font-medium text-slate-200"
@@ -404,16 +570,23 @@ export function NewInterviewForm({
           type="text"
           value={location}
           onChange={(event) =>
-            setLocation(event.target.value)
+            setLocation(
+              event.target.value
+            )
           }
           disabled={isSubmitting}
           placeholder="Example: Colombo Office"
-          className="w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-white outline-none placeholder:text-slate-600 focus:border-indigo-500"
+          className="w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-white outline-none placeholder:text-slate-600 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
         />
+
       </div>
 
-      {/* Meeting URL */}
+      {/* ====================================================
+          Meeting URL
+      ==================================================== */}
+
       <div>
+
         <label
           htmlFor="meetingUrl"
           className="mb-2 block text-sm font-medium text-slate-200"
@@ -432,13 +605,26 @@ export function NewInterviewForm({
           }
           disabled={isSubmitting}
           placeholder="https://meet.google.com/..."
-          className="w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-white outline-none placeholder:text-slate-600 focus:border-indigo-500"
+          className="w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-white outline-none placeholder:text-slate-600 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
         />
+
+        {mode === "video" && (
+          <p className="mt-2 text-xs text-slate-500">
+            Add the Google Meet, Microsoft Teams,
+            Zoom, or other online meeting link.
+          </p>
+        )}
+
       </div>
 
-      {/* Interviewer */}
+      {/* ====================================================
+          Interviewer
+      ==================================================== */}
+
       <div className="grid gap-6 sm:grid-cols-2">
+
         <div>
+
           <label
             htmlFor="interviewerName"
             className="mb-2 block text-sm font-medium text-slate-200"
@@ -457,11 +643,13 @@ export function NewInterviewForm({
             }
             disabled={isSubmitting}
             placeholder="Example: John Silva"
-            className="w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-white outline-none placeholder:text-slate-600 focus:border-indigo-500"
+            className="w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-white outline-none placeholder:text-slate-600 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
           />
+
         </div>
 
         <div>
+
           <label
             htmlFor="interviewerEmail"
             className="mb-2 block text-sm font-medium text-slate-200"
@@ -480,13 +668,19 @@ export function NewInterviewForm({
             }
             disabled={isSubmitting}
             placeholder="john@company.com"
-            className="w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-white outline-none placeholder:text-slate-600 focus:border-indigo-500"
+            className="w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-white outline-none placeholder:text-slate-600 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
           />
+
         </div>
+
       </div>
 
-      {/* Notes */}
+      {/* ====================================================
+          Notes
+      ==================================================== */}
+
       <div>
+
         <label
           htmlFor="notes"
           className="mb-2 block text-sm font-medium text-slate-200"
@@ -499,15 +693,21 @@ export function NewInterviewForm({
           rows={5}
           value={notes}
           onChange={(event) =>
-            setNotes(event.target.value)
+            setNotes(
+              event.target.value
+            )
           }
           disabled={isSubmitting}
           placeholder="Example: Review React hooks, REST APIs and SQL joins..."
-          className="w-full resize-y rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-white outline-none placeholder:text-slate-600 focus:border-indigo-500"
+          className="w-full resize-y rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-white outline-none placeholder:text-slate-600 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
         />
+
       </div>
 
-      {/* Error */}
+      {/* ====================================================
+          Error
+      ==================================================== */}
+
       {errorMessage && (
         <div
           role="alert"
@@ -517,7 +717,10 @@ export function NewInterviewForm({
         </div>
       )}
 
-      {/* Submit */}
+      {/* ====================================================
+          Submit
+      ==================================================== */}
+
       <button
         type="submit"
         disabled={isSubmitting}
@@ -527,6 +730,7 @@ export function NewInterviewForm({
           ? "Scheduling interview..."
           : "Schedule Interview"}
       </button>
+
     </form>
   );
 }

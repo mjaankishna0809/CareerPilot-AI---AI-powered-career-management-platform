@@ -74,7 +74,7 @@ export function KanbanBoard({
 
     const oldStatus = application.status;
 
-    // Do nothing if dropped back into same column
+    // Same column = nothing to do
     if (oldStatus === newStatus) {
       return;
     }
@@ -82,9 +82,9 @@ export function KanbanBoard({
     setErrorMessage("");
     setIsUpdating(true);
 
-    // --------------------------------
+    // --------------------------------------------------------
     // Optimistic UI update
-    // --------------------------------
+    // --------------------------------------------------------
 
     setApplications((currentApplications) =>
       currentApplications.map((item) =>
@@ -99,23 +99,72 @@ export function KanbanBoard({
 
     const supabase = createClient();
 
-    // --------------------------------
-    // Update Supabase
-    // --------------------------------
+    try {
+      // ------------------------------------------------------
+      // 1. Update main application
+      // ------------------------------------------------------
 
-    const { error } = await supabase
-      .from("job_applications")
-      .update({
-        status: newStatus,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", applicationId);
+      const { error: updateError } =
+        await supabase
+          .from("job_applications")
+          .update({
+            status: newStatus,
+            updated_at:
+              new Date().toISOString(),
+          })
+          .eq("id", applicationId);
 
-    if (error) {
-      // --------------------------------
-      // Roll back UI if database fails
-      // --------------------------------
+      if (updateError) {
+        throw new Error(
+          `Unable to update application: ${updateError.message}`
+        );
+      }
 
+      // ------------------------------------------------------
+      // 2. Save status history
+      // ------------------------------------------------------
+
+      const {
+        error: historyError,
+      } = await supabase
+        .from("application_status_history")
+        .insert({
+          application_id: applicationId,
+          from_status: oldStatus,
+          to_status: newStatus,
+          changed_at:
+            new Date().toISOString(),
+        });
+
+      if (historyError) {
+        // The application status has already changed.
+        // Roll it back because the history record failed.
+        await supabase
+          .from("job_applications")
+          .update({
+            status: oldStatus,
+            updated_at:
+              new Date().toISOString(),
+          })
+          .eq("id", applicationId);
+
+        throw new Error(
+          `Unable to save status history: ${historyError.message}`
+        );
+      }
+
+      // ------------------------------------------------------
+      // 3. Refresh server data
+      // ------------------------------------------------------
+
+      router.refresh();
+    } catch (error) {
+      console.error(
+        "Unable to move application:",
+        error
+      );
+
+      // Roll back optimistic UI
       setApplications((currentApplications) =>
         currentApplications.map((item) =>
           item.id === applicationId
@@ -128,22 +177,19 @@ export function KanbanBoard({
       );
 
       setErrorMessage(
-        `Unable to move application: ${error.message}`
+        error instanceof Error
+          ? error.message
+          : "Unable to move application."
       );
-
+    } finally {
       setIsUpdating(false);
-
-      return;
     }
-
-    setIsUpdating(false);
-
-    // Refresh Server Component data
-    router.refresh();
   }
 
   return (
     <>
+      {/* Error message */}
+
       {errorMessage && (
         <div
           role="alert"
@@ -153,6 +199,8 @@ export function KanbanBoard({
         </div>
       )}
 
+      {/* Updating message */}
+
       {isUpdating && (
         <p className="mb-4 text-sm text-slate-500">
           Updating application...
@@ -161,30 +209,36 @@ export function KanbanBoard({
 
       <DragDropProvider
         onDragEnd={async (event) => {
-          const { operation, canceled } =
-            event;
+          const {
+            operation,
+            canceled,
+          } = event;
 
           if (canceled) {
             return;
           }
 
-          const source = operation.source;
-          const target = operation.target;
+          const source =
+            operation.source;
+
+          const target =
+            operation.target;
 
           if (!source || !target) {
             return;
           }
 
-          const applicationId = String(
-            source.id
-          );
+          const applicationId =
+            String(source.id);
 
-          const targetId = String(
-            target.id
-          );
+          const targetId =
+            String(target.id);
 
+          // Only accept column drops
           if (
-            !targetId.startsWith("column:")
+            !targetId.startsWith(
+              "column:"
+            )
           ) {
             return;
           }
@@ -227,7 +281,9 @@ export function KanbanBoard({
                     applications={
                       columnApplications
                     }
-                    disabled={isUpdating}
+                    disabled={
+                      isUpdating
+                    }
                   />
                 );
               }
@@ -238,6 +294,10 @@ export function KanbanBoard({
     </>
   );
 }
+
+// ============================================================
+// Kanban Column
+// ============================================================
 
 type KanbanColumnProps = {
   status: ApplicationStatus;
@@ -250,12 +310,14 @@ function KanbanColumn({
   applications,
   disabled,
 }: KanbanColumnProps) {
-  const { ref, isDropTarget } =
-    useDroppable({
-      id: `column:${status}`,
-      accept: "application",
-      disabled,
-    });
+  const {
+    ref,
+    isDropTarget,
+  } = useDroppable({
+    id: `column:${status}`,
+    accept: "application",
+    disabled,
+  });
 
   return (
     <section className="w-72 shrink-0">
@@ -307,6 +369,10 @@ function KanbanColumn({
   );
 }
 
+// ============================================================
+// Application Card
+// ============================================================
+
 type DraggableApplicationCardProps = {
   application: KanbanApplication;
   disabled: boolean;
@@ -349,7 +415,6 @@ function DraggableApplicationCard({
           </p>
         </div>
 
-        {/* Drag handle */}
         <button
           ref={handleRef}
           type="button"
@@ -394,6 +459,10 @@ function DraggableApplicationCard({
   );
 }
 
+// ============================================================
+// Helpers
+// ============================================================
+
 function formatStatus(
   status: ApplicationStatus
 ) {
@@ -430,7 +499,8 @@ function formatWorkMode(
   };
 
   return (
-    labels[workMode] ?? workMode
+    labels[workMode] ??
+    workMode
   );
 }
 
