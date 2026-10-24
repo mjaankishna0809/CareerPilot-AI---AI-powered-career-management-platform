@@ -1,11 +1,14 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { FormEvent, useState } from "react";
 
 import { createClient } from "@/lib/supabase/client";
 
 export function SignUpForm() {
+  const router = useRouter();
+
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -38,31 +41,62 @@ export function SignUpForm() {
 
     setIsSubmitting(true);
 
-    const supabase = createClient();
+    try {
+      const supabase = createClient();
 
-    const { error } = await supabase.auth.signUp({
-      email: email.trim(),
-      password,
-      options: {
-        data: {
-          full_name: fullName.trim(),
+      const { data, error } = await supabase.auth.signUp({
+        email: email.trim(),
+        password,
+        options: {
+          emailRedirectTo: `${window.location.origin}/auth/confirm`,
+          data: {
+            full_name: fullName.trim(),
+          },
         },
-      },
-    });
+      });
 
-    if (error) {
-      setErrorMessage(error.message);
+      if (error) {
+        if (error.message.toLowerCase().includes("failed to fetch")) {
+          setErrorMessage(
+            "Cannot connect to Supabase (Failed to fetch). Please check if your Supabase project is paused in the Supabase Dashboard, or verify your .env.local credentials."
+          );
+        } else {
+          setErrorMessage(error.message);
+        }
+        setIsSubmitting(false);
+        return;
+      }
+
+      if (data?.user && data.user.identities && data.user.identities.length === 0) {
+        setErrorMessage("An account with this email already exists. Please sign in instead.");
+        setIsSubmitting(false);
+        return;
+      }
+
+      if (data?.session) {
+        router.refresh();
+        router.push("/dashboard");
+        return;
+      }
+
+      setSuccessMessage(
+        "Account created. Check your email and click the confirmation link."
+      );
+
+      setPassword("");
+      setConfirmPassword("");
       setIsSubmitting(false);
-      return;
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "An unexpected error occurred.";
+      if (msg.toLowerCase().includes("failed to fetch")) {
+        setErrorMessage(
+          "Cannot connect to Supabase (Failed to fetch). Please check if your Supabase project is paused in the Supabase Dashboard, or verify your .env.local credentials."
+        );
+      } else {
+        setErrorMessage(msg);
+      }
+      setIsSubmitting(false);
     }
-
-    setSuccessMessage(
-      "Account created. Check your email and click the confirmation link."
-    );
-
-    setPassword("");
-    setConfirmPassword("");
-    setIsSubmitting(false);
   }
 
   return (

@@ -1,13 +1,22 @@
 import type { Metadata } from "next";
+import { redirect } from "next/navigation";
 
 import { SignUpForm } from "@/components/auth/sign-up-form";
+import { createClient } from "@/lib/supabase/server";
 
 export const metadata: Metadata = {
   title: "Create account | CareerPilot AI",
   description: "Create your CareerPilot AI account.",
 };
 
-export default function SignUpPage() {
+export default async function SignUpPage() {
+  const supabase = await createClient();
+
+  const { data } = await supabase.auth.getClaims();
+
+  if (data?.claims) {
+    redirect("/dashboard");
+  }
   return (
     <main className="flex min-h-screen items-center justify-center bg-slate-950 px-4 py-12">
       <div className="w-full max-w-md">

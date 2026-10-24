@@ -21,21 +21,39 @@ export function LoginForm() {
     setErrorMessage("");
     setIsSubmitting(true);
 
-    const supabase = createClient();
+    try {
+      const supabase = createClient();
 
-    const { error } = await supabase.auth.signInWithPassword({
-      email: email.trim(),
-      password,
-    });
+      const { error } = await supabase.auth.signInWithPassword({
+        email: email.trim(),
+        password,
+      });
 
-    if (error) {
-      setErrorMessage(error.message);
+      if (error) {
+        if (error.message.toLowerCase().includes("failed to fetch")) {
+          setErrorMessage(
+            "Cannot connect to Supabase (Failed to fetch). Please check if your Supabase project is paused in the Supabase Dashboard, or verify your .env.local credentials."
+          );
+        } else {
+          setErrorMessage(error.message);
+        }
+        setIsSubmitting(false);
+        return;
+      }
+
+      router.refresh();
+      router.push("/dashboard");
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "An unexpected error occurred.";
+      if (msg.toLowerCase().includes("failed to fetch")) {
+        setErrorMessage(
+          "Cannot connect to Supabase (Failed to fetch). Please check if your Supabase project is paused in the Supabase Dashboard, or verify your .env.local credentials."
+        );
+      } else {
+        setErrorMessage(msg);
+      }
       setIsSubmitting(false);
-      return;
     }
-
-    router.push("/dashboard");
-    router.refresh();
   }
 
   return (

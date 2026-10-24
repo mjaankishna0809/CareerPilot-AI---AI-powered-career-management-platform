@@ -8,7 +8,8 @@ export async function updateSession(request: NextRequest) {
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
+    (process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ||
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)!,
     {
       cookies: {
         getAll() {
@@ -28,15 +29,21 @@ export async function updateSession(request: NextRequest) {
             response.cookies.set(name, value, options);
           });
 
-          Object.entries(headers).forEach(([key, value]) => {
-            response.headers.set(key, value);
-          });
+          if (headers) {
+            Object.entries(headers).forEach(([key, value]) => {
+              response.headers.set(key, value);
+            });
+          }
         },
       },
     }
   );
 
-  await supabase.auth.getClaims();
+  try {
+    await supabase.auth.getClaims();
+  } catch (error) {
+    console.error("Session update error:", error);
+  }
 
   return response;
 }
